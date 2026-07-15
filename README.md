@@ -56,7 +56,7 @@ python pipeline_test.py 2 --temp 29 --head 빠름
 - Lot / comparison reports (HTML): `config.REPORT_DIR`
 - Completed-lot history (`lots_index.json`, internal data used by the compare feature): `./output`
 
-These paths currently default to an absolute local path on the machine this repo was first built on. If you move the project to another computer, update `EXCEL_DIR`/`REPORT_DIR` in `config.py` to match that environment.
+These paths are relative to the project root (`config.py`'s `EXCEL_DIR`/`REPORT_DIR`), so they work as-is on any OS or install location as long as you run the server from the project root — no per-machine setup needed.
 
 ## Project Structure
 

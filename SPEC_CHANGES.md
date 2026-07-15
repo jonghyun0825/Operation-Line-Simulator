@@ -53,13 +53,15 @@
 - ST1 측정이 먼저 그 SN의 행을 새로 만들고, ST2 측정이 같은 행을 찾아 채운다 (구현은 순서에 무관하게 동작).
 - 시트 2 "NG추적", 시트 3 "Lot요약"의 행/컬럼 구조는 변경 없음. 단 Lot요약에서 "레일 속도" 행은 삭제.
 - **저장 위치 변경**: `output/LOT-xxx.xlsx` → `config.EXCEL_DIR`
-  (`C:\Users\shins\OneDrive\Desktop\Line Simulator\엑셀 데이터`, OneDrive 동기화 경로). 저장 실패 시
-  재시도하는 기존 로직(`excel_writer.py`)은 경로만 바뀌었을 뿐 동일하게 적용된다.
+  (`./엑셀 데이터`, 프로젝트 루트 기준 상대경로 — 최초 이 PC에서는 OneDrive 동기화 경로 하위에 위치해
+  저장 실패 재시도 로직이 특히 중요했음. 이후 다른 OS/설치 위치에서도 그대로 쓸 수 있도록 절대경로에서
+  상대경로로 재변경됨). 저장 실패 시 재시도하는 기존 로직(`excel_writer.py`)은 경로만 바뀌었을 뿐
+  동일하게 적용된다.
 
 ## F6. Lot 완료 및 보고서 자동 생성 / F7. Lot 비교 기능
 
 - **보고서 저장 위치 변경**: `output/LOT-xxx_report.html`, `output/COMPARE-*.html` →
-  `config.REPORT_DIR` (`C:\Users\shins\OneDrive\Desktop\Line Simulator\보고서`).
+  `config.REPORT_DIR` (`./보고서`, 프로젝트 루트 기준 상대경로).
   `lots_index.json`은 사용자용 산출물이 아니므로 기존 `./output` 위치를 유지한다(엑셀·보고서와
   분리된 이유).
 - **AI 코멘트 구조 변경**: LLM에게 자유 텍스트 대신 `{"analysis": "...", "recommendation": "..."}`
@@ -77,10 +79,11 @@
 - 삭제: `CONVEYOR_SPEED_PRESETS`
 - 추가:
   ```python
-  EXCEL_DIR = r"C:\Users\shins\OneDrive\Desktop\Line Simulator\엑셀 데이터"
-  REPORT_DIR = r"C:\Users\shins\OneDrive\Desktop\Line Simulator\보고서"
+  EXCEL_DIR = "./엑셀 데이터"
+  REPORT_DIR = "./보고서"
   ```
-  (`OUTPUT_DIR`은 `lots_index.json` 전용으로 의미가 좁혀짐)
+  (`OUTPUT_DIR`은 `lots_index.json` 전용으로 의미가 좁혀짐. 두 경로 모두 프로젝트 루트 기준
+  상대경로라 OS·설치 위치에 무관하게 동작한다 — 서버를 프로젝트 루트에서 실행한다고 가정)
 - `tact_times(head_speed)`: 인자에서 `conveyor_speed` 제거, `index_sec`은 `INDEX_SEC` 고정값 반환.
 
 ## 9. 최종 인수 기준

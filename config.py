@@ -42,9 +42,10 @@ INDEX_SEC = 0.8
 OUTPUT_DIR = "./output"                    # lots_index.json 등 내부 데이터 전용 (사용자용 산출물 아님)
 LOTS_INDEX = "./output/lots_index.json"
 
-# 엑셀(.xlsx)·보고서(HTML) 저장 위치 — 공백/한글이 포함된 경로이므로 raw string 사용
-EXCEL_DIR = r"C:\Users\shins\OneDrive\Desktop\Line Simulator\엑셀 데이터"
-REPORT_DIR = r"C:\Users\shins\OneDrive\Desktop\Line Simulator\보고서"
+# 엑셀(.xlsx)·보고서(HTML) 저장 위치 — 프로젝트 폴더 기준 상대경로라 OS/설치 위치에 상관없이 동작한다
+# (실행 시 현재 작업 디렉터리가 프로젝트 루트라고 가정 — OUTPUT_DIR과 동일한 규칙).
+EXCEL_DIR = "./엑셀 데이터"
+REPORT_DIR = "./보고서"
 
 # ── LLM (환경변수에서 읽기, .env 파일 지원) ──
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL")
