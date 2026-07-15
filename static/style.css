@@ -133,6 +133,7 @@ h3 { font-size: 13px; margin: 16px 0 6px 0; color: #6b7280; }
 .rivet { fill: #64748b; }
 .indicator-light { fill: #34d399; }
 
+.head-mount-arm { fill: url(#machineGradient); stroke: #64748b; stroke-width: 1; }
 .head-body { fill: url(#headGradient); stroke: #0f172a; stroke-width: 1; }
 .head-body-highlight { fill: #60a5fa; opacity: 0.35; }
 .head-bit { fill: #334155; stroke: #0f172a; stroke-width: 0.5; }

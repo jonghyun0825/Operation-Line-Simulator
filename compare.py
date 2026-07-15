@@ -9,7 +9,6 @@ from llm_client import generate_compare_comment
 CONDITION_LABELS = [
     ("temperature", "온도", "°C"),
     ("head_speed", "헤드 속도", ""),
-    ("conveyor_speed", "레일 속도", ""),
 ]
 
 
@@ -24,7 +23,7 @@ def _rule_based_conclusion(a: dict, b: dict) -> str:
     diff = round(a["defect_rate"] - b["defect_rate"], 2)  # a 기준 b와의 차이
 
     def cond_str(e):
-        return f"{e['temperature']}°C, 헤드 {e['head_speed']}, 레일 {e['conveyor_speed']}"
+        return f"{e['temperature']}°C, 헤드 {e['head_speed']}"
 
     if diff < 0:
         gap = round(abs(diff), 2)
@@ -64,7 +63,6 @@ def _numeric_table(a: dict, b: dict) -> str:
     rows = [
         ("온도", f"{a['temperature']}°C", f"{b['temperature']}°C", False, False),
         ("헤드 속도", a["head_speed"], b["head_speed"], False, False),
-        ("레일 속도", a["conveyor_speed"], b["conveyor_speed"], False, False),
         ("생산수", f"{a['quantity']}개", f"{b['quantity']}개", False, False),
         ("NG수", f"{a['ng_count']}개", f"{b['ng_count']}개", a["ng_count"] < b["ng_count"], b["ng_count"] < a["ng_count"]),
         ("불량률", f"{a['defect_rate']}%", f"{b['defect_rate']}%", a_lower, b_lower),
@@ -86,7 +84,7 @@ def _numeric_table(a: dict, b: dict) -> str:
     </table>"""
 
 
-def _build_compare_html(a: dict, b: dict, conclusion: str, comment: str) -> str:
+def _build_compare_html(a: dict, b: dict, conclusion: str, comment: dict) -> str:
     return f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -103,6 +101,8 @@ def _build_compare_html(a: dict, b: dict, conclusion: str, comment: str) -> str:
   .data-table td.highlight {{ background: #d1fae5; font-weight: 700; color: #065f46; }}
   .conclusion-box {{ background: #fff7ed; border-left: 4px solid #f59e0b; padding: 14px 18px; border-radius: 6px; font-size: 15px; line-height: 1.6; }}
   .comment-box {{ background: #eef6ff; border-left: 4px solid #3b82f6; padding: 14px 18px; border-radius: 6px; margin-top: 8px; white-space: pre-wrap; line-height: 1.6; }}
+  .recommend-box {{ background: #fff7ed; border: 1px solid #fdba74; border-left: 4px solid #f97316; padding: 14px 18px; border-radius: 6px; margin-top: 10px; white-space: pre-wrap; line-height: 1.6; }}
+  .recommend-title {{ font-weight: 700; color: #9a3412; margin-bottom: 4px; }}
 </style>
 </head>
 <body>
@@ -116,7 +116,7 @@ def _build_compare_html(a: dict, b: dict, conclusion: str, comment: str) -> str:
   <div class="conclusion-box">{escape(conclusion)}</div>
 
   <h2>AI 해석 코멘트</h2>
-  <div class="comment-box">{escape(comment)}</div>
+  {report.render_ai_comment_block(comment)}
 </div>
 </body>
 </html>"""
@@ -131,8 +131,8 @@ def generate_compare(lot_a_id: str, lot_b_id: str):
     comment = generate_compare_comment(a, b)
     html = _build_compare_html(a, b, conclusion, comment)
 
-    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
-    path = os.path.join(config.OUTPUT_DIR, f"COMPARE-{a['lot_id']}-{b['lot_id']}.html")
+    os.makedirs(config.REPORT_DIR, exist_ok=True)
+    path = os.path.join(config.REPORT_DIR, f"COMPARE-{a['lot_id']}-{b['lot_id']}.html")
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
 

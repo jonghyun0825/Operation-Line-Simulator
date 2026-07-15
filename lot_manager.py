@@ -19,8 +19,8 @@ def next_lot_id(now: Optional[datetime] = None) -> str:
     (완료되지 않은 Lot도 파일이 이미 생성돼 있으므로 재시작 후에도 번호가 겹치지 않는다)"""
     now = now or datetime.now()
     date_str = now.strftime("%Y%m%d")
-    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
-    pattern = os.path.join(config.OUTPUT_DIR, f"LOT-{date_str}-*.xlsx")
+    os.makedirs(config.EXCEL_DIR, exist_ok=True)
+    pattern = os.path.join(config.EXCEL_DIR, f"LOT-{date_str}-*.xlsx")
     max_n = 0
     for path in glob.glob(pattern):
         m = re.search(r"LOT-(\d{8})-(\d{3})\.xlsx$", os.path.basename(path))
@@ -49,7 +49,6 @@ class Lot:
     quantity: int
     temperature: int
     head_speed: str
-    conveyor_speed: str
     tact: dict
     created_at: str
     sns: List[str] = field(default_factory=list)
@@ -61,20 +60,18 @@ class Lot:
     _seq_counter: int = 0
 
     @classmethod
-    def create(cls, boxes: int, temperature: int, head_speed: str, conveyor_speed: str) -> "Lot":
+    def create(cls, boxes: int, temperature: int, head_speed: str) -> "Lot":
         if not (1 <= boxes <= config.MAX_BOXES):
             raise ValueError(f"boxes는 1~{config.MAX_BOXES} 범위여야 합니다 (받은 값: {boxes})")
         if not (config.TEMP_MIN <= temperature <= config.TEMP_MAX):
             raise ValueError(f"temperature는 {config.TEMP_MIN}~{config.TEMP_MAX} 범위여야 합니다 (받은 값: {temperature})")
         if head_speed not in config.HEAD_SPEED_PRESETS:
             raise ValueError(f"head_speed는 {list(config.HEAD_SPEED_PRESETS)} 중 하나여야 합니다")
-        if conveyor_speed not in config.CONVEYOR_SPEED_PRESETS:
-            raise ValueError(f"conveyor_speed는 {list(config.CONVEYOR_SPEED_PRESETS)} 중 하나여야 합니다")
 
         quantity = boxes * config.BOX_SIZE
         lot_id = next_lot_id()
         sns = [f"SN-{i:04d}" for i in range(1, quantity + 1)]
-        tact = config.tact_times(head_speed, conveyor_speed)
+        tact = config.tact_times(head_speed)
 
         lot = cls(
             lot_id=lot_id,
@@ -82,7 +79,6 @@ class Lot:
             quantity=quantity,
             temperature=temperature,
             head_speed=head_speed,
-            conveyor_speed=conveyor_speed,
             tact=tact,
             created_at=datetime.now().isoformat(timespec="seconds"),
             sns=sns,
@@ -161,7 +157,6 @@ class Lot:
             "quantity": self.quantity,
             "temperature": self.temperature,
             "head_speed": self.head_speed,
-            "conveyor_speed": self.conveyor_speed,
             "tact": self.tact,
             "created_at": self.created_at,
             "completed_at": self.completed_at or datetime.now().isoformat(timespec="seconds"),

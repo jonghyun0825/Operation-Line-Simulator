@@ -27,7 +27,6 @@ def _lots_index_entry(agg: dict) -> dict:
         "quantity": agg["quantity"],
         "temperature": agg["temperature"],
         "head_speed": agg["head_speed"],
-        "conveyor_speed": agg["conveyor_speed"],
         "ok_count": agg["ok_count"],
         "ng_count": agg["ng_count"],
         "defect_rate": agg["defect_rate"],
@@ -51,6 +50,20 @@ def list_completed_lots() -> list:
     return _load_lots_index()
 
 
+def render_ai_comment_block(comment: dict) -> str:
+    """LLM 코멘트 dict({"analysis": str, "recommendation": str|None})를
+    해석 문단 + (있으면) 개선 권고 강조 블록 HTML로 렌더링한다.
+    recommendation이 없으면(JSON 분리 실패 등) analysis만 기존처럼 단일 문단으로 표시된다."""
+    html = f'<div class="comment-box">{escape(comment["analysis"])}</div>'
+    if comment.get("recommendation"):
+        html += f"""
+    <div class="recommend-box">
+      <div class="recommend-title">개선 권고</div>
+      <div>{escape(comment["recommendation"])}</div>
+    </div>"""
+    return html
+
+
 def _condition_card(agg: dict) -> str:
     return f"""
     <div class="card cond-card">
@@ -58,7 +71,6 @@ def _condition_card(agg: dict) -> str:
       <div class="cond-grid">
         <div><span class="label">온도</span><span class="value">{agg['temperature']}°C</span></div>
         <div><span class="label">헤드 속도</span><span class="value">{escape(agg['head_speed'])}</span></div>
-        <div><span class="label">레일 속도</span><span class="value">{escape(agg['conveyor_speed'])}</span></div>
         <div><span class="label">박스 수</span><span class="value">{agg['boxes']}</span></div>
       </div>
     </div>"""
@@ -112,8 +124,8 @@ def _ng_table(agg: dict) -> str:
     </table>"""
 
 
-def build_html_report(agg: dict, comment: str) -> str:
-    excel_href = f"/output/{agg['lot_id']}.xlsx"
+def build_html_report(agg: dict, comment: dict) -> str:
+    excel_href = f"/excel-files/{agg['lot_id']}.xlsx"
     return f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -127,7 +139,7 @@ def build_html_report(agg: dict, comment: str) -> str:
   .card {{ background: #fff; border-radius: 10px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }}
   .cond-card {{ margin-bottom: 20px; }}
   .cond-card h3 {{ margin: 0 0 12px 0; font-size: 15px; color: #374151; }}
-  .cond-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }}
+  .cond-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }}
   .cond-grid .label {{ display:block; font-size: 12px; color: #6b7280; }}
   .cond-grid .value {{ display:block; font-size: 18px; font-weight: 600; }}
   .stat-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }}
@@ -139,6 +151,8 @@ def build_html_report(agg: dict, comment: str) -> str:
   .data-table th {{ background: #eef0f3; font-weight: 600; }}
   .empty {{ color: #9ca3af; }}
   .comment-box {{ background: #eef6ff; border-left: 4px solid #3b82f6; padding: 14px 18px; border-radius: 6px; margin-top: 8px; white-space: pre-wrap; line-height: 1.6; }}
+  .recommend-box {{ background: #fff7ed; border: 1px solid #fdba74; border-left: 4px solid #f97316; padding: 14px 18px; border-radius: 6px; margin-top: 10px; white-space: pre-wrap; line-height: 1.6; }}
+  .recommend-title {{ font-weight: 700; color: #9a3412; margin-bottom: 4px; }}
   .download {{ display: inline-block; margin-top: 24px; padding: 10px 18px; background: #111827; color: #fff; text-decoration: none; border-radius: 6px; }}
 </style>
 </head>
@@ -157,7 +171,7 @@ def build_html_report(agg: dict, comment: str) -> str:
   {_ng_table(agg)}
 
   <h2>AI 해석 코멘트</h2>
-  <div class="comment-box">{escape(comment)}</div>
+  {render_ai_comment_block(comment)}
 
   <a class="download" href="{escape(excel_href)}" download>엑셀 파일 다운로드</a>
 </div>
@@ -171,8 +185,8 @@ def generate_report(agg: dict):
     save_lot_index_entry(agg)
     html = build_html_report(agg, comment)
 
-    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
-    path = os.path.join(config.OUTPUT_DIR, f"{agg['lot_id']}_report.html")
+    os.makedirs(config.REPORT_DIR, exist_ok=True)
+    path = os.path.join(config.REPORT_DIR, f"{agg['lot_id']}_report.html")
     with open(path, "w", encoding="utf-8") as f:
         f.write(html)
 

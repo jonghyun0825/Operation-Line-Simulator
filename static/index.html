@@ -23,7 +23,7 @@
     <div class="lots-table-wrap">
       <table class="data-table" id="lotsTable">
         <thead>
-          <tr><th></th><th>Lot ID</th><th>온도</th><th>헤드</th><th>레일</th><th>생산수</th><th>불량률</th></tr>
+          <tr><th></th><th>Lot ID</th><th>온도</th><th>헤드</th><th>생산수</th><th>불량률</th></tr>
         </thead>
         <tbody id="lotsTableBody"></tbody>
       </table>
@@ -75,16 +75,6 @@
       <div class="hint">빠를수록 측정값 산포(불량 위험)가 커집니다</div>
     </div>
 
-    <div class="field">
-      <label>레일 속도</label>
-      <div class="btn-group" id="conveyorSpeedGroup">
-        <button type="button" data-value="느림">느림</button>
-        <button type="button" data-value="보통" class="selected">보통</button>
-        <button type="button" data-value="빠름">빠름</button>
-      </div>
-      <div class="hint">이송 속도만 변화, 품질에는 영향 없음</div>
-    </div>
-
     <button id="startBtn" class="primary-btn" type="button">생산 시작</button>
     <div class="lock-hint" id="lockHint" hidden>생산 중에는 조건을 변경할 수 없습니다</div>
   </aside>
@@ -124,6 +114,12 @@
         <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
           <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.25"/>
         </filter>
+        <!-- 투입구 개구부(feeder-opening) 안쪽에서부터만 반제품이 보이게 하는 클립.
+             경계(x=100)는 IN 슬롯에 정지한 반제품의 가장 왼쪽 가장자리(x=115)보다 왼쪽에 있어
+             정지 상태의 반제품은 절대 잘리지 않고, 투입구에서 미끄러져 나오는 유닛만 가려진다. -->
+        <clipPath id="feederClip">
+          <rect x="100" y="0" width="800" height="300"/>
+        </clipPath>
       </defs>
 
       <!-- 컨베이어 레일 -->
@@ -173,13 +169,18 @@
       <!-- 반제품 레이어 -->
       <g id="unitsLayer"></g>
 
-      <!-- 체결 헤드 (반드시 유닛보다 위에 렌더링) -->
-      <g id="headM1" class="head" transform="translate(320,90)">
+      <!-- 체결 헤드 (반드시 유닛보다 위에 렌더링)
+           헤드는 나사 지점(막대 폭의 20%/80%)에 맞춰 슬롯 중심에서 좌우로 오프셋되어 장착된다.
+           베이스·칼럼의 형태·크기는 두 기계가 동일하고, 오프셋은 헤드 장착 위치에만 적용된다
+           (마운트 암이 칼럼 앞면과 헤드를 시각적으로 이어준다). -->
+      <g id="headM1" class="head" transform="translate(291.8,90)">
+        <rect x="8" y="-30" width="9" height="8" rx="2" class="head-mount-arm"/>
         <rect x="-16" y="-40" width="32" height="26" rx="4" class="head-body"/>
         <rect x="-11" y="-35" width="9" height="16" rx="2" class="head-body-highlight"/>
         <rect x="-3" y="-14" width="6" height="14" rx="2" class="head-bit"/>
       </g>
-      <g id="headM2" class="head" transform="translate(620,90)">
+      <g id="headM2" class="head" transform="translate(648.2,90)">
+        <rect x="-17" y="-30" width="9" height="8" rx="2" class="head-mount-arm"/>
         <rect x="-16" y="-40" width="32" height="26" rx="4" class="head-body"/>
         <rect x="-11" y="-35" width="9" height="16" rx="2" class="head-body-highlight"/>
         <rect x="-3" y="-14" width="6" height="14" rx="2" class="head-bit"/>
@@ -203,8 +204,7 @@
       <div class="status-lotid" id="stLotId">-</div>
       <div class="status-cond">
         온도 <strong><span id="stTemp">-</span>°C</strong> ·
-        헤드 <strong><span id="stHead">-</span></strong> ·
-        레일 <strong><span id="stConveyor">-</span></strong>
+        헤드 <strong><span id="stHead">-</span></strong>
       </div>
 
       <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>

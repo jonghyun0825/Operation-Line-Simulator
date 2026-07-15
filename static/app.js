@@ -8,10 +8,20 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 // ── 라인 좌표 (SVG viewBox 0 0 900 300 기준) ──
 const SLOT_X = [170, 320, 470, 620]; // IN, ST1, MID, ST2
-const FEEDER_X = 115;
+// 투입구 시작 x는 IN 슬롯과 동일한 표준 피치(150px)만큼 떨어뜨려, 등장 이동이 다른 슬롯 간
+// 이송과 동일한 속도로 진행되게 한다(겹침 방지 — feederClip과 함께 동작).
+const FEEDER_X = SLOT_X[0] - 150; // = 20
 const CART_X = 780;
 const HEAD_UP_Y = 90;
 const HEAD_DOWN_Y = 180;
+
+// 반제품 위 막대 폭과 나사 지점(20%/80%) — 나사 표시와 헤드 가로 위치가 이 상수 하나만
+// 공유하도록 해서 "비트 접촉 지점 = 나사 위치"가 구조적으로 어긋날 수 없게 한다.
+const UNIT_TOP_BAR_WIDTH = 94;
+const SCREW_INSET_RATIO = 0.2; // 막대 폭의 20% 지점(왼쪽) / 80% 지점(오른쪽)
+const SCREW_OFFSET_X = UNIT_TOP_BAR_WIDTH * (0.5 - SCREW_INSET_RATIO); // 슬롯 중심 기준 좌우 오프셋
+const HEAD_M1_X = SLOT_X[1] - SCREW_OFFSET_X; // ST1 헤드: 왼쪽 나사 지점 위
+const HEAD_M2_X = SLOT_X[3] + SCREW_OFFSET_X; // ST2 헤드: 오른쪽 나사 지점 위
 
 const unitsLayer = document.getElementById("unitsLayer");
 const headM1 = document.getElementById("headM1");
@@ -56,6 +66,9 @@ function createUnitGroup(unit) {
   const g = document.createElementNS(SVG_NS, "g");
   g.classList.add("unit");
   g.dataset.sn = unit.sn;
+  // 투입구 개구부 뒤에서 서서히 드러나며 등장하도록 클립 적용.
+  // 클립 경계(x=100)는 라인 위 모든 정지 위치보다 왼쪽이라 등장 이후에는 아무 영향이 없다.
+  g.setAttribute("clip-path", "url(#feederClip)");
 
   const bottom = document.createElementNS(SVG_NS, "rect");
   bottom.setAttribute("x", -55); bottom.setAttribute("y", 194);
@@ -74,8 +87,8 @@ function createUnitGroup(unit) {
   g.appendChild(bottom);
   g.appendChild(top);
 
-  const screwLeft = createScrew(-28, 187);
-  const screwRight = createScrew(28, 187);
+  const screwLeft = createScrew(-SCREW_OFFSET_X, 187);
+  const screwRight = createScrew(SCREW_OFFSET_X, 187);
   g.appendChild(screwLeft);
   g.appendChild(screwRight);
 
@@ -245,8 +258,8 @@ class LineEngine {
     else if (this.phase === "UP") headY = HEAD_DOWN_Y + (HEAD_UP_Y - HEAD_DOWN_Y) * et;
     else headY = HEAD_UP_Y; // INDEX: 헤드는 상단에서 대기
 
-    setHeadPosition(headM1, SLOT_X[1], headY);
-    setHeadPosition(headM2, SLOT_X[3], headY);
+    setHeadPosition(headM1, HEAD_M1_X, headY);
+    setHeadPosition(headM2, HEAD_M2_X, headY);
 
     if (this.phase === "INDEX" && this.indexSnapshot) {
       const { old, spawn, exiting } = this.indexSnapshot;
@@ -286,7 +299,6 @@ const conditionState = {
   boxes: 1,
   temperature: 24,
   headSpeed: "보통",
-  conveyorSpeed: "보통",
 };
 
 const boxValueEl = document.getElementById("boxValue");
@@ -328,7 +340,6 @@ function wireBtnGroup(groupId, key) {
   });
 }
 wireBtnGroup("headSpeedGroup", "headSpeed");
-wireBtnGroup("conveyorSpeedGroup", "conveyorSpeed");
 
 updateBoxDisplay();
 updateTempDisplay();
@@ -365,7 +376,6 @@ function renderStatus(data) {
   document.getElementById("stLotId").textContent = data.lot_id;
   document.getElementById("stTemp").textContent = data.conditions.temperature;
   document.getElementById("stHead").textContent = data.conditions.head_speed;
-  document.getElementById("stConveyor").textContent = data.conditions.conveyor_speed;
   document.getElementById("progressText").textContent = `${data.completed_count} / ${data.quantity}`;
   const pct = data.quantity ? (data.completed_count / data.quantity) * 100 : 0;
   document.getElementById("progressFill").style.width = pct + "%";
@@ -394,7 +404,6 @@ document.getElementById("startBtn").addEventListener("click", async () => {
       boxes: conditionState.boxes,
       temperature: conditionState.temperature,
       head_speed: conditionState.headSpeed,
-      conveyor_speed: conditionState.conveyorSpeed,
     }),
   });
   if (!res.ok) {
@@ -446,7 +455,7 @@ function updateCompareFooter() {
 function renderLotsTable(lots) {
   lotsTableBody.innerHTML = "";
   if (lots.length === 0) {
-    lotsTableBody.innerHTML = '<tr class="empty-row"><td colspan="7">완료된 Lot이 없습니다.</td></tr>';
+    lotsTableBody.innerHTML = '<tr class="empty-row"><td colspan="6">완료된 Lot이 없습니다.</td></tr>';
     return;
   }
   // 최신 Lot이 위로 오도록 정렬
@@ -459,7 +468,6 @@ function renderLotsTable(lots) {
       <td>${lot.lot_id}</td>
       <td>${lot.temperature}°C</td>
       <td>${lot.head_speed}</td>
-      <td>${lot.conveyor_speed}</td>
       <td>${lot.quantity}개</td>
       <td>${lot.defect_rate}%</td>
     `;
@@ -501,7 +509,7 @@ async function openCompareModal() {
     const lots = await res.json();
     renderLotsTable(lots);
   } catch (e) {
-    lotsTableBody.innerHTML = '<tr class="empty-row"><td colspan="7">목록을 불러오지 못했습니다.</td></tr>';
+    lotsTableBody.innerHTML = '<tr class="empty-row"><td colspan="6">목록을 불러오지 못했습니다.</td></tr>';
   }
 }
 

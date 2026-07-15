@@ -19,6 +19,8 @@ from measurement import generate_measurement
 app = FastAPI(title="가상 조립라인 품질관리 시뮬레이터")
 
 os.makedirs(config.OUTPUT_DIR, exist_ok=True)
+os.makedirs(config.EXCEL_DIR, exist_ok=True)
+os.makedirs(config.REPORT_DIR, exist_ok=True)
 os.makedirs("static", exist_ok=True)
 
 
@@ -44,7 +46,6 @@ class LotCreateRequest(BaseModel):
     boxes: int
     temperature: int
     head_speed: str
-    conveyor_speed: str
 
 
 class MeasureRequest(BaseModel):
@@ -62,7 +63,7 @@ class UnitCompleteRequest(BaseModel):
 @app.post("/api/lot")
 def create_lot(req: LotCreateRequest):
     try:
-        lot = Lot.create(req.boxes, req.temperature, req.head_speed, req.conveyor_speed)
+        lot = Lot.create(req.boxes, req.temperature, req.head_speed)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -83,10 +84,7 @@ def measure(req: MeasureRequest):
     lot = session.lot
     value, judgment, lsl, usl, item_name = generate_measurement(req.station, lot.temperature, lot.head_speed)
     rec = lot.record_measurement(req.unit_sn, req.station, value, judgment, lsl, usl, item_name)
-    session.writer.append_measurement(
-        rec.seq, rec.sn, rec.station, rec.item_name,
-        rec.value, rec.lsl, rec.usl, rec.judgment, rec.ts,
-    )
+    session.writer.append_measurement(rec.sn, rec.station, rec.value, rec.judgment, rec.ts)
     return {"value": value, "judgment": judgment}
 
 
@@ -132,7 +130,6 @@ def get_status(lot_id: str):
         "conditions": {
             "temperature": lot.temperature,
             "head_speed": lot.head_speed,
-            "conveyor_speed": lot.conveyor_speed,
         },
         "quantity": lot.quantity,
         "completed_count": len(lot.completed_sns),
@@ -147,7 +144,7 @@ def get_status(lot_id: str):
 
 @app.get("/api/report/{lot_id}")
 def get_report(lot_id: str):
-    path = os.path.join(config.OUTPUT_DIR, f"{lot_id}_report.html")
+    path = os.path.join(config.REPORT_DIR, f"{lot_id}_report.html")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="보고서가 아직 생성되지 않았습니다")
     return FileResponse(path, media_type="text/html")
@@ -168,7 +165,8 @@ def get_compare(lot_a: str, lot_b: str):
 
 
 # ── 정적 파일 ──
-app.mount("/output", StaticFiles(directory=config.OUTPUT_DIR), name="output")
+# 엑셀 다운로드 링크(report.py가 만드는 href="/excel-files/...")가 이 마운트를 통해 서빙된다.
+app.mount("/excel-files", StaticFiles(directory=config.EXCEL_DIR), name="excel-files")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
