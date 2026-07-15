@@ -3,34 +3,44 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>가상 조립라인 품질관리 시뮬레이터</title>
+<title data-i18n="app_title">가상 조립라인 품질관리 시뮬레이터</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header class="app-header">
-  <h1>가상 조립라인 품질관리 시뮬레이터</h1>
-  <button id="openCompareBtn" class="header-btn" type="button">Lot 비교</button>
+  <h1 data-i18n="app_title">가상 조립라인 품질관리 시뮬레이터</h1>
+  <div class="header-actions">
+    <button id="openCompareBtn" class="header-btn" type="button" data-i18n="compare_btn">Lot 비교</button>
+    <button id="langToggleBtn" class="header-btn" type="button">EN</button>
+  </div>
 </header>
 
 <!-- F7: Lot 비교 모달 -->
 <div id="compareModal" class="modal-overlay" hidden>
   <div class="modal-box">
     <div class="modal-header">
-      <h2>완료된 Lot 비교</h2>
+      <h2 data-i18n="compare_modal_title">완료된 Lot 비교</h2>
       <button id="closeCompareBtn" class="icon-btn" type="button">×</button>
     </div>
-    <p class="hint">비교할 Lot 2개를 선택하세요.</p>
+    <p class="hint" data-i18n="compare_modal_hint">비교할 Lot 2개를 선택하세요.</p>
     <div class="lots-table-wrap">
       <table class="data-table" id="lotsTable">
         <thead>
-          <tr><th></th><th>Lot ID</th><th>온도</th><th>헤드</th><th>생산수</th><th>불량률</th></tr>
+          <tr>
+            <th></th>
+            <th data-i18n="th_lot_id">Lot ID</th>
+            <th data-i18n="th_temp">온도</th>
+            <th data-i18n="th_head">헤드</th>
+            <th data-i18n="th_qty">생산수</th>
+            <th data-i18n="th_defect_rate">불량률</th>
+          </tr>
         </thead>
         <tbody id="lotsTableBody"></tbody>
       </table>
     </div>
     <div class="modal-footer">
-      <span id="compareSelectionHint" class="hint">0 / 2 선택됨</span>
-      <button id="runCompareBtn" class="primary-btn" type="button" disabled>비교 보고서 보기</button>
+      <span id="compareSelectionHint" class="hint">0 / 2</span>
+      <button id="runCompareBtn" class="primary-btn" type="button" disabled data-i18n="compare_view_btn">비교 보고서 보기</button>
     </div>
   </div>
 </div>
@@ -38,20 +48,20 @@
 <div class="app-layout">
   <!-- F1: 생산 조건 설정 패널 -->
   <aside class="condition-panel" id="conditionPanel">
-    <h2>생산 조건 설정</h2>
+    <h2 data-i18n="condition_title">생산 조건 설정</h2>
 
     <div class="field">
-      <label>박스 수</label>
+      <label data-i18n="box_count_label">박스 수</label>
       <div class="stepper">
         <button id="boxDec" type="button">−</button>
         <span id="boxValue">1</span>
         <button id="boxInc" type="button">+</button>
       </div>
-      <div class="hint">1박스 = 10개 · 총 <strong id="totalQty">10</strong>개 생산</div>
+      <div class="hint" id="boxHint">1박스 = 10개 · 총 <strong>10</strong>개 생산</div>
     </div>
 
     <div class="field">
-      <label>온도</label>
+      <label data-i18n="temp_label">온도</label>
       <div class="temp-control">
         <input type="range" id="tempRange" min="20" max="30" step="1" value="24">
         <div class="temp-scale">
@@ -61,22 +71,22 @@
           <span id="tempValue">24</span>°C
           <span class="temp-badge ok" id="tempBadge">적정</span>
         </div>
-        <div class="hint">적정 범위 22~26°C (벗어나면 측정값이 한쪽으로 치우칩니다)</div>
+        <div class="hint" data-i18n="temp_hint">적정 범위 22~26°C (벗어나면 측정값이 한쪽으로 치우칩니다)</div>
       </div>
     </div>
 
     <div class="field">
-      <label>헤드 속도</label>
+      <label data-i18n="head_speed_label">헤드 속도</label>
       <div class="btn-group" id="headSpeedGroup">
-        <button type="button" data-value="느림">느림</button>
-        <button type="button" data-value="보통" class="selected">보통</button>
-        <button type="button" data-value="빠름">빠름</button>
+        <button type="button" data-value="느림" data-i18n="speed_slow">느림</button>
+        <button type="button" data-value="보통" class="selected" data-i18n="speed_normal">보통</button>
+        <button type="button" data-value="빠름" data-i18n="speed_fast">빠름</button>
       </div>
-      <div class="hint">빠를수록 측정값 산포(불량 위험)가 커집니다</div>
+      <div class="hint" data-i18n="head_speed_hint">빠를수록 측정값 산포(불량 위험)가 커집니다</div>
     </div>
 
-    <button id="startBtn" class="primary-btn" type="button">생산 시작</button>
-    <div class="lock-hint" id="lockHint" hidden>생산 중에는 조건을 변경할 수 없습니다</div>
+    <button id="startBtn" class="primary-btn" type="button" data-i18n="start_btn">생산 시작</button>
+    <div class="lock-hint" id="lockHint" hidden data-i18n="lock_hint">생산 중에는 조건을 변경할 수 없습니다</div>
   </aside>
 
   <!-- F2: 2D 조립라인 애니메이션 -->
@@ -193,35 +203,36 @@
     </svg>
 
     <div class="post-actions" id="postActions" hidden>
-      <button id="viewReportBtn" class="primary-btn" type="button">보고서 보기</button>
-      <button id="newLotBtn" class="secondary-btn" type="button">새 Lot 시작</button>
+      <button id="viewReportBtn" class="primary-btn" type="button" data-i18n="view_report_btn">보고서 보기</button>
+      <button id="newLotBtn" class="secondary-btn" type="button" data-i18n="new_lot_btn">새 Lot 시작</button>
     </div>
   </main>
 
   <!-- F5: 실시간 현황 패널 -->
   <aside class="status-panel">
-    <h2>실시간 현황</h2>
-    <div id="statusIdle" class="status-idle">Lot을 시작하면 현황이 표시됩니다.</div>
+    <h2 data-i18n="status_title">실시간 현황</h2>
+    <div id="statusIdle" class="status-idle" data-i18n="status_idle_text">Lot을 시작하면 현황이 표시됩니다.</div>
     <div id="statusContent" hidden>
       <div class="status-lotid" id="stLotId">-</div>
       <div class="status-cond">
-        온도 <strong><span id="stTemp">-</span>°C</strong> ·
-        헤드 <strong><span id="stHead">-</span></strong>
+        <span data-i18n="temp_label">온도</span> <strong><span id="stTemp">-</span>°C</strong> ·
+        <span data-i18n="head_label">헤드</span> <strong><span id="stHead">-</span></strong>
       </div>
 
       <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
       <div class="progress-text" id="progressText">0 / 0</div>
 
-      <div class="stat-row"><span>OK</span><span id="stOk" class="ok-value">0</span></div>
-      <div class="stat-row"><span>NG</span><span id="stNg" class="ng-value">0</span></div>
-      <div class="stat-row"><span>실시간 불량률</span><span id="stDefectRate">0%</span></div>
+      <div class="stat-row"><span data-i18n="ok_label">OK</span><span id="stOk" class="ok-value">0</span></div>
+      <div class="stat-row"><span data-i18n="ng_label">NG</span><span id="stNg" class="ng-value">0</span></div>
+      <div class="stat-row"><span data-i18n="defect_rate_label">실시간 불량률</span><span id="stDefectRate">0%</span></div>
 
-      <h3>NG 발생 목록</h3>
+      <h3 data-i18n="ng_list_title">NG 발생 목록</h3>
       <ul id="ngList" class="ng-list"></ul>
     </div>
   </aside>
 </div>
 
+<script src="/static/i18n.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

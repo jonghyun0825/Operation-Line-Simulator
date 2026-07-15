@@ -6,6 +6,80 @@
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+/* ── 다국어(한/영) ──
+ * 고정 라벨은 index.html의 data-i18n 속성 + static/i18n.js가 처리한다.
+ * 여기 있는 것들은 JS가 직접 조립하는 동적 문자열(카운터, 알림, 목록 항목 등)이라
+ * data-i18n으로는 표현할 수 없어 t()로 그때그때 번역한다. */
+const I18N = {
+  app_title: { ko: "가상 조립라인 품질관리 시뮬레이터", en: "Virtual Assembly Line Quality Simulator" },
+  compare_btn: { ko: "Lot 비교", en: "Compare Lots" },
+  compare_modal_title: { ko: "완료된 Lot 비교", en: "Compare Completed Lots" },
+  compare_modal_hint: { ko: "비교할 Lot 2개를 선택하세요.", en: "Select 2 lots to compare." },
+  th_lot_id: { ko: "Lot ID", en: "Lot ID" },
+  th_temp: { ko: "온도", en: "Temp" },
+  th_head: { ko: "헤드", en: "Head" },
+  th_qty: { ko: "생산수", en: "Qty" },
+  th_defect_rate: { ko: "불량률", en: "Defect Rate" },
+  compare_view_btn: { ko: "비교 보고서 보기", en: "View Comparison Report" },
+  condition_title: { ko: "생산 조건 설정", en: "Production Conditions" },
+  box_count_label: { ko: "박스 수", en: "Box Count" },
+  box_hint: { ko: "1박스 = 10개 · 총 {n}개 생산", en: "1 box = 10 units · {n} units total" },
+  temp_label: { ko: "온도", en: "Temperature" },
+  temp_ok: { ko: "적정", en: "Within range" },
+  temp_high: { ko: "높음", en: "High" },
+  temp_low: { ko: "낮음", en: "Low" },
+  temp_hint: { ko: "적정 범위 22~26°C (벗어나면 측정값이 한쪽으로 치우칩니다)", en: "Ideal range 22–26°C (outside it, measurements skew to one side)" },
+  head_speed_label: { ko: "헤드 속도", en: "Head Speed" },
+  head_label: { ko: "헤드", en: "Head" },
+  speed_slow: { ko: "느림", en: "Slow" },
+  speed_normal: { ko: "보통", en: "Normal" },
+  speed_fast: { ko: "빠름", en: "Fast" },
+  head_speed_hint: { ko: "빠를수록 측정값 산포(불량 위험)가 커집니다", en: "Faster increases measurement spread (defect risk)" },
+  start_btn: { ko: "생산 시작", en: "Start Production" },
+  lock_hint: { ko: "생산 중에는 조건을 변경할 수 없습니다", en: "Conditions can't be changed while producing" },
+  view_report_btn: { ko: "보고서 보기", en: "View Report" },
+  new_lot_btn: { ko: "새 Lot 시작", en: "Start New Lot" },
+  status_title: { ko: "실시간 현황", en: "Live Status" },
+  status_idle_text: { ko: "Lot을 시작하면 현황이 표시됩니다.", en: "Status will appear once a lot starts." },
+  ok_label: { ko: "OK", en: "OK" },
+  ng_label: { ko: "NG", en: "NG" },
+  defect_rate_label: { ko: "실시간 불량률", en: "Live Defect Rate" },
+  ng_list_title: { ko: "NG 발생 목록", en: "NG Occurrences" },
+  counter: { ko: "완성 {done} / {total}", en: "Completed {done} / {total}" },
+  alert_lot_create_failed: { ko: "Lot 생성 실패: ", en: "Failed to create lot: " },
+  selection_count: { ko: "{n} / 2 선택됨", en: "{n} / 2 selected" },
+  no_completed_lots: { ko: "완료된 Lot이 없습니다.", en: "No completed lots yet." },
+  lots_load_failed: { ko: "목록을 불러오지 못했습니다.", en: "Failed to load the list." },
+  qty_units: { ko: "{n}개", en: "{n} units" },
+};
+
+// 서버가 돌려주는 head_speed 값("느림"/"보통"/"빠름")은 항상 한국어이므로,
+// 화면에 뿌릴 때만 이 표로 번역한다. API로 보내는 값 자체는 절대 바꾸지 않는다.
+const SPEED_VALUE_LABEL = {
+  "느림": I18N.speed_slow,
+  "보통": I18N.speed_normal,
+  "빠름": I18N.speed_fast,
+};
+
+let currentLang = "ko";
+
+function t(key, vars) {
+  const entry = I18N[key];
+  if (!entry) return key;
+  let text = entry[currentLang] != null ? entry[currentLang] : entry.ko;
+  if (vars) {
+    Object.keys(vars).forEach((k) => {
+      text = text.replace(`{${k}}`, vars[k]);
+    });
+  }
+  return text;
+}
+
+function speedLabel(koValue) {
+  const entry = SPEED_VALUE_LABEL[koValue];
+  return entry ? (entry[currentLang] != null ? entry[currentLang] : entry.ko) : koValue;
+}
+
 // ── 라인 좌표 (SVG viewBox 0 0 900 300 기준) ──
 const SLOT_X = [170, 320, 470, 620]; // IN, ST1, MID, ST2
 // 투입구 시작 x는 IN 슬롯과 동일한 표준 피치(150px)만큼 떨어뜨려, 등장 이동이 다른 슬롯 간
@@ -304,14 +378,15 @@ const conditionState = {
 };
 
 const boxValueEl = document.getElementById("boxValue");
-const totalQtyEl = document.getElementById("totalQty");
+const boxHintEl = document.getElementById("boxHint");
 const tempRangeEl = document.getElementById("tempRange");
 const tempValueEl = document.getElementById("tempValue");
 const tempBadgeEl = document.getElementById("tempBadge");
 
 function updateBoxDisplay() {
+  const total = conditionState.boxes * BOX_SIZE;
   boxValueEl.textContent = conditionState.boxes;
-  totalQtyEl.textContent = conditionState.boxes * BOX_SIZE;
+  boxHintEl.innerHTML = t("box_hint", { n: `<strong>${total}</strong>` });
 }
 document.getElementById("boxDec").addEventListener("click", () => {
   if (conditionState.boxes > 1) { conditionState.boxes--; updateBoxDisplay(); }
@@ -323,7 +398,7 @@ document.getElementById("boxInc").addEventListener("click", () => {
 function updateTempDisplay() {
   tempValueEl.textContent = conditionState.temperature;
   const inRange = conditionState.temperature >= TEMP_OK_RANGE[0] && conditionState.temperature <= TEMP_OK_RANGE[1];
-  tempBadgeEl.textContent = inRange ? "적정" : (conditionState.temperature > TEMP_OK_RANGE[1] ? "높음" : "낮음");
+  tempBadgeEl.textContent = inRange ? t("temp_ok") : (conditionState.temperature > TEMP_OK_RANGE[1] ? t("temp_high") : t("temp_low"));
   tempBadgeEl.className = "temp-badge " + (inRange ? "ok" : "warn");
 }
 tempRangeEl.addEventListener("input", (e) => {
@@ -372,12 +447,15 @@ async function pollStatus(lotId) {
     renderStatus(await res.json());
   } catch (e) {}
 }
+let lastStatusData = null;
+
 function renderStatus(data) {
+  lastStatusData = data;
   document.getElementById("statusIdle").hidden = true;
   document.getElementById("statusContent").hidden = false;
   document.getElementById("stLotId").textContent = data.lot_id;
   document.getElementById("stTemp").textContent = data.conditions.temperature;
-  document.getElementById("stHead").textContent = data.conditions.head_speed;
+  document.getElementById("stHead").textContent = speedLabel(data.conditions.head_speed);
   document.getElementById("progressText").textContent = `${data.completed_count} / ${data.quantity}`;
   const pct = data.quantity ? (data.completed_count / data.quantity) * 100 : 0;
   document.getElementById("progressFill").style.width = pct + "%";
@@ -397,6 +475,12 @@ function renderStatus(data) {
 /* ── 메인 흐름 ── */
 let engine = null;
 let currentLotId = null;
+let lastCounter = { done: 0, total: 0 };
+
+function updateCounterText(done, total) {
+  lastCounter = { done, total };
+  counterText.textContent = t("counter", { done, total });
+}
 
 document.getElementById("startBtn").addEventListener("click", async () => {
   const res = await fetch("/api/lot", {
@@ -410,7 +494,7 @@ document.getElementById("startBtn").addEventListener("click", async () => {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    alert("Lot 생성 실패: " + (err.detail || err.error || res.status));
+    alert(t("alert_lot_create_failed") + (err.detail || err.error || res.status));
     return;
   }
   const data = await res.json();
@@ -418,7 +502,7 @@ document.getElementById("startBtn").addEventListener("click", async () => {
 
   setPanelLocked(true);
   document.getElementById("postActions").hidden = true;
-  counterText.textContent = `완성 0 / ${data.quantity}`;
+  updateCounterText(0, data.quantity);
   unitsLayer.innerHTML = "";
 
   engine = new LineEngine({
@@ -426,7 +510,7 @@ document.getElementById("startBtn").addEventListener("click", async () => {
     quantity: data.quantity,
     tact: data.tact_times,
     onProgress: ({ completed, quantity }) => {
-      counterText.textContent = `완성 ${completed} / ${quantity}`;
+      updateCounterText(completed, quantity);
     },
     onFinish: () => {
       stopStatusPolling();
@@ -448,16 +532,18 @@ const lotsTableBody = document.getElementById("lotsTableBody");
 const runCompareBtn = document.getElementById("runCompareBtn");
 const compareSelectionHint = document.getElementById("compareSelectionHint");
 let selectedLots = []; // 최대 2개 lot_id
+let lastLotsData = null;
 
 function updateCompareFooter() {
-  compareSelectionHint.textContent = `${selectedLots.length} / 2 선택됨`;
+  compareSelectionHint.textContent = t("selection_count", { n: selectedLots.length });
   runCompareBtn.disabled = selectedLots.length !== 2;
 }
 
 function renderLotsTable(lots) {
+  lastLotsData = lots;
   lotsTableBody.innerHTML = "";
   if (lots.length === 0) {
-    lotsTableBody.innerHTML = '<tr class="empty-row"><td colspan="6">완료된 Lot이 없습니다.</td></tr>';
+    lotsTableBody.innerHTML = `<tr class="empty-row"><td colspan="6">${t("no_completed_lots")}</td></tr>`;
     return;
   }
   // 최신 Lot이 위로 오도록 정렬
@@ -469,8 +555,8 @@ function renderLotsTable(lots) {
       <td><input type="checkbox" data-lot-id="${lot.lot_id}"></td>
       <td>${lot.lot_id}</td>
       <td>${lot.temperature}°C</td>
-      <td>${lot.head_speed}</td>
-      <td>${lot.quantity}개</td>
+      <td>${speedLabel(lot.head_speed)}</td>
+      <td>${t("qty_units", { n: lot.quantity })}</td>
       <td>${lot.defect_rate}%</td>
     `;
     tr.addEventListener("click", (e) => {
@@ -479,6 +565,10 @@ function renderLotsTable(lots) {
     });
     const checkbox = tr.querySelector("input");
     checkbox.addEventListener("change", () => toggleLotSelection(lot.lot_id, tr, checkbox));
+    if (selectedLots.includes(lot.lot_id)) {
+      checkbox.checked = true;
+      tr.classList.add("row-selected");
+    }
     lotsTableBody.appendChild(tr);
   });
 }
@@ -511,7 +601,7 @@ async function openCompareModal() {
     const lots = await res.json();
     renderLotsTable(lots);
   } catch (e) {
-    lotsTableBody.innerHTML = '<tr class="empty-row"><td colspan="6">목록을 불러오지 못했습니다.</td></tr>';
+    lotsTableBody.innerHTML = `<tr class="empty-row"><td colspan="6">${t("lots_load_failed")}</td></tr>`;
   }
 }
 
@@ -533,7 +623,22 @@ document.getElementById("newLotBtn").addEventListener("click", () => {
   document.getElementById("statusContent").hidden = true;
   document.getElementById("statusIdle").hidden = false;
   unitsLayer.innerHTML = "";
-  counterText.textContent = "완성 0 / 0";
+  updateCounterText(0, 0);
   currentLotId = null;
   engine = null;
+});
+
+/* ── 언어 토글 설정 (모든 요소/함수 정의 이후에 호출) ──
+ * 저장된 언어를 즉시 적용하고, 이후 토글될 때마다 현재 화면에 떠 있는 동적 콘텐츠를
+ * (남아있는 마지막 데이터로) 다시 그려서 새 언어로 즉시 반영한다. */
+i18nSetup(I18N, (lang) => {
+  currentLang = lang;
+  updateBoxDisplay();
+  updateTempDisplay();
+  updateCounterText(lastCounter.done, lastCounter.total);
+  if (lastStatusData) renderStatus(lastStatusData);
+  if (!compareModal.hidden) {
+    updateCompareFooter();
+    if (lastLotsData) renderLotsTable(lastLotsData);
+  }
 });
