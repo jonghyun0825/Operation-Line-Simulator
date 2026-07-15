@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가상 조립라인 품질관리 시뮬레이터</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="app-header">
+  <h1>가상 조립라인 품질관리 시뮬레이터</h1>
+  <button id="openCompareBtn" class="header-btn" type="button">Lot 비교</button>
+</header>
+
+<!-- F7: Lot 비교 모달 -->
+<div id="compareModal" class="modal-overlay" hidden>
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>완료된 Lot 비교</h2>
+      <button id="closeCompareBtn" class="icon-btn" type="button">×</button>
+    </div>
+    <p class="hint">비교할 Lot 2개를 선택하세요.</p>
+    <div class="lots-table-wrap">
+      <table class="data-table" id="lotsTable">
+        <thead>
+          <tr><th></th><th>Lot ID</th><th>온도</th><th>헤드</th><th>레일</th><th>생산수</th><th>불량률</th></tr>
+        </thead>
+        <tbody id="lotsTableBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <span id="compareSelectionHint" class="hint">0 / 2 선택됨</span>
+      <button id="runCompareBtn" class="primary-btn" type="button" disabled>비교 보고서 보기</button>
+    </div>
+  </div>
+</div>
+
+<div class="app-layout">
+  <!-- F1: 생산 조건 설정 패널 -->
+  <aside class="condition-panel" id="conditionPanel">
+    <h2>생산 조건 설정</h2>
+
+    <div class="field">
+      <label>박스 수</label>
+      <div class="stepper">
+        <button id="boxDec" type="button">−</button>
+        <span id="boxValue">1</span>
+        <button id="boxInc" type="button">+</button>
+      </div>
+      <div class="hint">1박스 = 10개 · 총 <strong id="totalQty">10</strong>개 생산</div>
+    </div>
+
+    <div class="field">
+      <label>온도</label>
+      <div class="temp-control">
+        <input type="range" id="tempRange" min="20" max="30" step="1" value="24">
+        <div class="temp-scale">
+          <div class="temp-scale-ok" id="tempScaleOk"></div>
+        </div>
+        <div class="temp-readout">
+          <span id="tempValue">24</span>°C
+          <span class="temp-badge ok" id="tempBadge">적정</span>
+        </div>
+        <div class="hint">적정 범위 22~26°C (벗어나면 측정값이 한쪽으로 치우칩니다)</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>헤드 속도</label>
+      <div class="btn-group" id="headSpeedGroup">
+        <button type="button" data-value="느림">느림</button>
+        <button type="button" data-value="보통" class="selected">보통</button>
+        <button type="button" data-value="빠름">빠름</button>
+      </div>
+      <div class="hint">빠를수록 측정값 산포(불량 위험)가 커집니다</div>
+    </div>
+
+    <div class="field">
+      <label>레일 속도</label>
+      <div class="btn-group" id="conveyorSpeedGroup">
+        <button type="button" data-value="느림">느림</button>
+        <button type="button" data-value="보통" class="selected">보통</button>
+        <button type="button" data-value="빠름">빠름</button>
+      </div>
+      <div class="hint">이송 속도만 변화, 품질에는 영향 없음</div>
+    </div>
+
+    <button id="startBtn" class="primary-btn" type="button">생산 시작</button>
+    <div class="lock-hint" id="lockHint" hidden>생산 중에는 조건을 변경할 수 없습니다</div>
+  </aside>
+
+  <!-- F2: 2D 조립라인 애니메이션 -->
+  <main class="line-area">
+    <svg id="lineSvg" viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="doorGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="45%" stop-color="#94a3b8"/>
+          <stop offset="52%" stop-color="#e2e8f0"/>
+          <stop offset="100%" stop-color="#f8fafc"/>
+        </linearGradient>
+        <linearGradient id="machineGradient" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#b6c2d1"/>
+          <stop offset="45%" stop-color="#e2e8f0"/>
+          <stop offset="60%" stop-color="#cbd5e1"/>
+          <stop offset="100%" stop-color="#94a3b8"/>
+        </linearGradient>
+        <linearGradient id="baseGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#dbe3ec"/>
+          <stop offset="100%" stop-color="#8492a6"/>
+        </linearGradient>
+        <linearGradient id="cartGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#dbe3ec"/>
+          <stop offset="100%" stop-color="#94a3b8"/>
+        </linearGradient>
+        <radialGradient id="headGradient" cx="35%" cy="30%" r="75%">
+          <stop offset="0%" stop-color="#3b5bb0"/>
+          <stop offset="100%" stop-color="#16255c"/>
+        </radialGradient>
+        <linearGradient id="feederGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#dbe3ec"/>
+          <stop offset="100%" stop-color="#94a3b8"/>
+        </linearGradient>
+        <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.25"/>
+        </filter>
+      </defs>
+
+      <!-- 컨베이어 레일 -->
+      <rect class="rail" x="10" y="210" width="860" height="12" rx="4"/>
+      <rect class="rail-highlight" x="10" y="210" width="860" height="3" rx="1.5"/>
+
+      <!-- 투입구(IN) -->
+      <g class="feeder" filter="url(#softShadow)">
+        <path d="M 30 150 L 120 150 L 120 168 L 45 168 Z" class="feeder-hopper"/>
+        <rect x="30" y="150" width="90" height="62" rx="8" class="feeder-body"/>
+        <rect x="85" y="185" width="35" height="25" rx="3" class="feeder-opening"/>
+        <rect x="85" y="185" width="35" height="6" rx="2" class="feeder-opening-shade"/>
+      </g>
+
+      <!-- 대차(OUT) -->
+      <g class="cart" filter="url(#softShadow)">
+        <rect x="700" y="205" width="150" height="10" rx="3" class="cart-body"/>
+        <rect x="700" y="160" width="10" height="50" rx="2" class="cart-body"/>
+        <rect x="840" y="160" width="10" height="50" rx="2" class="cart-body"/>
+        <rect x="700" y="158" width="150" height="4" rx="2" class="cart-rim"/>
+        <line x1="848" y1="168" x2="878" y2="138" class="cart-handle"/>
+        <circle cx="725" cy="222" r="10" class="cart-wheel"/>
+        <circle cx="725" cy="222" r="3" class="cart-wheel-hub"/>
+        <circle cx="805" cy="222" r="10" class="cart-wheel"/>
+        <circle cx="805" cy="222" r="3" class="cart-wheel-hub"/>
+      </g>
+      <text id="counterText" class="counter-text" x="775" y="120" text-anchor="middle">완성 0 / 0</text>
+
+      <!-- 기계 M1 (ST1) -->
+      <g class="machine" filter="url(#softShadow)">
+        <rect x="250" y="195" width="140" height="24" rx="5" class="base-frame"/>
+        <rect x="305" y="20" width="30" height="175" rx="4" class="column"/>
+        <circle cx="258" cy="204" r="2.5" class="rivet"/>
+        <circle cx="382" cy="204" r="2.5" class="rivet"/>
+        <circle cx="320" cy="30" r="3" class="indicator-light"/>
+      </g>
+
+      <!-- 기계 M2 (ST2) -->
+      <g class="machine" filter="url(#softShadow)">
+        <rect x="550" y="195" width="140" height="24" rx="5" class="base-frame"/>
+        <rect x="605" y="20" width="30" height="175" rx="4" class="column"/>
+        <circle cx="558" cy="204" r="2.5" class="rivet"/>
+        <circle cx="682" cy="204" r="2.5" class="rivet"/>
+        <circle cx="620" cy="30" r="3" class="indicator-light"/>
+      </g>
+
+      <!-- 반제품 레이어 -->
+      <g id="unitsLayer"></g>
+
+      <!-- 체결 헤드 (반드시 유닛보다 위에 렌더링) -->
+      <g id="headM1" class="head" transform="translate(320,90)">
+        <rect x="-16" y="-40" width="32" height="26" rx="4" class="head-body"/>
+        <rect x="-11" y="-35" width="9" height="16" rx="2" class="head-body-highlight"/>
+        <rect x="-3" y="-14" width="6" height="14" rx="2" class="head-bit"/>
+      </g>
+      <g id="headM2" class="head" transform="translate(620,90)">
+        <rect x="-16" y="-40" width="32" height="26" rx="4" class="head-body"/>
+        <rect x="-11" y="-35" width="9" height="16" rx="2" class="head-body-highlight"/>
+        <rect x="-3" y="-14" width="6" height="14" rx="2" class="head-bit"/>
+      </g>
+
+      <text class="station-label" x="320" y="270" text-anchor="middle">ST1</text>
+      <text class="station-label" x="620" y="270" text-anchor="middle">ST2</text>
+    </svg>
+
+    <div class="post-actions" id="postActions" hidden>
+      <button id="viewReportBtn" class="primary-btn" type="button">보고서 보기</button>
+      <button id="newLotBtn" class="secondary-btn" type="button">새 Lot 시작</button>
+    </div>
+  </main>
+
+  <!-- F5: 실시간 현황 패널 -->
+  <aside class="status-panel">
+    <h2>실시간 현황</h2>
+    <div id="statusIdle" class="status-idle">Lot을 시작하면 현황이 표시됩니다.</div>
+    <div id="statusContent" hidden>
+      <div class="status-lotid" id="stLotId">-</div>
+      <div class="status-cond">
+        온도 <strong><span id="stTemp">-</span>°C</strong> ·
+        헤드 <strong><span id="stHead">-</span></strong> ·
+        레일 <strong><span id="stConveyor">-</span></strong>
+      </div>
+
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">0 / 0</div>
+
+      <div class="stat-row"><span>OK</span><span id="stOk" class="ok-value">0</span></div>
+      <div class="stat-row"><span>NG</span><span id="stNg" class="ng-value">0</span></div>
+      <div class="stat-row"><span>실시간 불량률</span><span id="stDefectRate">0%</span></div>
+
+      <h3>NG 발생 목록</h3>
+      <ul id="ngList" class="ng-list"></ul>
+    </div>
+  </aside>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

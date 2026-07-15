@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+output/
+엑셀 데이터/
+보고서/
+.env
