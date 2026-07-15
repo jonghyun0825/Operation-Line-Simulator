@@ -2,7 +2,7 @@
 
 A miniature MES (Manufacturing Execution System) simulator that runs a 2-station serial assembly line in the browser. Set production conditions (temperature, head speed) and start a run — two automatic screw-fastening machines process units with perfectly synchronized up/down motion. Every fastening event generates a real measurement written to an Excel (.xlsx) file, out-of-spec values are tracked as NG, and an AI-interpreted quality report is generated automatically when a lot completes.
 
-> Note: the application UI itself is in Korean (this was built for a Korean-language manufacturing context). This README describes the project in English; screenshots and on-screen labels remain Korean.
+> Note: this was originally built for a Korean-language manufacturing context, so Korean is the default UI language. A language toggle (top-right, "EN" / "한국어") switches the whole app — and both report types — to English. The screenshot below shows the Korean default.
 
 ![screenshot](docs/screenshot.png)
 
@@ -13,6 +13,7 @@ A miniature MES (Manufacturing Execution System) simulator that runs a 2-station
 - **Real Excel logging**: one row per unit (SN) recording both stations' torque/judgment/timestamp; out-of-spec cells are highlighted red. Includes a dedicated NG-tracking sheet and a lot-summary sheet.
 - **AI-interpreted reports**: on lot completion, Python aggregates the numbers and an in-house LLM generates a separate analysis and improvement recommendation. Report generation always succeeds even if the LLM is unavailable (a graceful "AI comment generation failed" fallback is shown instead).
 - **Lot comparison**: pick two completed lots to get a side-by-side condition/defect-rate table, a rule-based (non-LLM) conclusion sentence, and an LLM interpretation of what might explain the difference.
+- **Korean / English toggle**: a top-right button switches the main app and both report types between languages, with the choice remembered across visits. The one exception is AI-generated analysis/recommendation text, which is only ever produced in Korean (no translation API involved) — English mode shows a small note saying so.
 
 ## Tech Stack
 
@@ -71,6 +72,7 @@ These paths currently default to an absolute local path on the machine this repo
 | `main.py` | FastAPI app (7 API routes + static file serving) |
 | `pipeline_test.py` | CLI that runs the core logic without the web server |
 | `static/` | Frontend (condition panel, SVG line animation, status panel, lot-compare UI) |
+| `static/i18n.js` | Shared Korean/English toggle engine, also loaded by the server-rendered reports |
 
 ## API
 
