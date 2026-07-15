@@ -167,7 +167,9 @@
       </g>
 
       <!-- 반제품 레이어 -->
-      <g id="unitsLayer"></g>
+      <!-- clip-path는 transform이 없는 이 컨테이너 자체에 걸어야 자식 유닛들의 이동 transform이
+           반영된 최종 위치 기준으로 올바르게 클리핑된다 (자세한 이유는 static/app.js 주석 참조). -->
+      <g id="unitsLayer" clip-path="url(#feederClip)"></g>
 
       <!-- 체결 헤드 (반드시 유닛보다 위에 렌더링)
            헤드는 나사 지점(막대 폭의 20%/80%)에 맞춰 슬롯 중심에서 좌우로 오프셋되어 장착된다.

@@ -66,9 +66,11 @@ function createUnitGroup(unit) {
   const g = document.createElementNS(SVG_NS, "g");
   g.classList.add("unit");
   g.dataset.sn = unit.sn;
-  // 투입구 개구부 뒤에서 서서히 드러나며 등장하도록 클립 적용.
-  // 클립 경계(x=100)는 라인 위 모든 정지 위치보다 왼쪽이라 등장 이후에는 아무 영향이 없다.
-  g.setAttribute("clip-path", "url(#feederClip)");
+  // 투입구 클립(#feederClip)은 이 그룹 자신이 아니라 부모 unitsLayer에 걸려 있다.
+  // (SVG clip-path는 참조하는 요소 자신의 transform을 반영하지 않는 좌표계로 평가되므로,
+  //  이동 transform이 있는 그룹에 직접 걸면 로컬 좌표(-55~55)가 클립 영역(x>=100)과
+  //  전혀 겹치지 않아 반제품이 항상 안 보이게 된다 — 실측으로 확인된 버그.
+  //  transform이 없는 unitsLayer에 한 번만 걸면 최종 렌더링 좌표 기준으로 올바르게 클리핑된다.)
 
   const bottom = document.createElementNS(SVG_NS, "rect");
   bottom.setAttribute("x", -55); bottom.setAttribute("y", 194);
