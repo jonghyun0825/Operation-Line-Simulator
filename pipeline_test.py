@@ -49,9 +49,12 @@ def run(boxes: int, temperature: int, head_speed: str) -> dict:
         )
     print(f"[엑셀] {writer.path}")
     print(f"[보고서] {report_path}")
-    print(f"[AI 해석] {comment['analysis']}")
-    if comment.get("recommendation"):
-        print(f"[AI 개선 권고] {comment['recommendation']}")
+    print(f"[AI 해석/KO] {comment['analysis']['ko']}")
+    print(f"[AI 해석/EN] {comment['analysis']['en']}")
+    rec = comment.get("recommendation") or {}
+    if rec.get("ko") or rec.get("en"):
+        print(f"[AI 개선 권고/KO] {rec.get('ko')}")
+        print(f"[AI 개선 권고/EN] {rec.get('en')}")
     return agg
 
 

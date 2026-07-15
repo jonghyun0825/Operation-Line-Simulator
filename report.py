@@ -4,8 +4,8 @@
 LLM 출력에서는 코멘트 텍스트만 가져오고 숫자를 가져오지 않는다.
 
 한/영 전환: 고정 라벨과 Lot별 값 모두 data-i18n 속성 + JS 사전(dict) 하나로 통일해서 처리한다
-(static/i18n.js가 공통 엔진). AI가 생성하는 해석·개선 권고 문장 자체는 번역 API 없이는 자동
-번역할 수 없어 한국어로만 표시되며, 영어 모드에서는 그 사실을 알리는 안내문을 덧붙인다.
+(static/i18n.js가 공통 엔진). AI가 생성하는 해석·개선 권고도 같은 방식으로 전환된다 — 번역이
+아니라 llm_client.py가 동일한 집계 수치를 근거로 한국어/영어 버전을 각각 독립적으로 생성한다.
 """
 import json
 import os
@@ -46,7 +46,6 @@ STATIC_I18N = {
     "th_occurred_at": {"ko": "발생시각", "en": "Occurred At"},
     "no_ng": {"ko": "NG 발생 없음", "en": "No NG occurred"},
     "ai_comment_title": {"ko": "AI 해석 코멘트", "en": "AI Interpretation"},
-    "ai_ko_only_note": {"ko": "", "en": "(AI-generated text is written in Korean only)"},
     "recommend_title": {"ko": "개선 권고", "en": "Recommendation"},
     "download_btn": {"ko": "엑셀 파일 다운로드", "en": "Download Excel File"},
 }
@@ -90,17 +89,35 @@ def list_completed_lots() -> list:
 
 
 def render_ai_comment_block(comment: dict) -> str:
-    """LLM 코멘트 dict({"analysis": str, "recommendation": str|None})를
-    해석 문단 + (있으면) 개선 권고 강조 블록 HTML로 렌더링한다.
-    recommendation이 없으면(JSON 분리 실패 등) analysis만 기존처럼 단일 문단으로 표시된다."""
-    html = f'<div class="comment-box">{escape(comment["analysis"])}</div>'
-    if comment.get("recommendation"):
+    """LLM 코멘트 dict({"analysis": {"ko","en"}, "recommendation": {"ko","en"}})를
+    해석 문단 + (있으면) 개선 권고 강조 블록 HTML로 렌더링한다. 실제 텍스트는 data-i18n으로
+    토글되며(ai_comment_i18n_entries가 그 값을 페이지 사전에 채워 넣는다), 여기서는 한국어를
+    폴백으로 심어둔다. recommendation이 두 언어 모두 없으면(JSON 분리 실패 등) 블록 자체를
+    생략하고 analysis만 기존처럼 단일 문단으로 표시된다."""
+    html = f'<div class="comment-box" data-i18n="ai_analysis">{escape(comment["analysis"]["ko"])}</div>'
+    rec = comment.get("recommendation") or {}
+    rec_fallback = rec.get("ko") or rec.get("en")
+    if rec_fallback:
         html += f"""
     <div class="recommend-box">
       <div class="recommend-title" data-i18n="recommend_title">개선 권고</div>
-      <div>{escape(comment["recommendation"])}</div>
+      <div data-i18n="ai_recommendation">{escape(rec_fallback)}</div>
     </div>"""
     return html
+
+
+def ai_comment_i18n_entries(comment: dict) -> dict:
+    """render_ai_comment_block()의 data-i18n="ai_analysis"/"ai_recommendation" 키가 참조할
+    한/영 텍스트를 만든다. 한쪽 언어 생성이 실패했으면(폴백 메시지만 있으면) 다른 쪽 성공한
+    언어로 대체해 블록이 절대 비어 보이지 않게 한다."""
+    analysis = comment["analysis"]
+    entries = {"ai_analysis": {"ko": analysis["ko"], "en": analysis.get("en") or analysis["ko"]}}
+
+    rec = comment.get("recommendation") or {}
+    rec_ko, rec_en = rec.get("ko"), rec.get("en")
+    if rec_ko or rec_en:
+        entries["ai_recommendation"] = {"ko": rec_ko or rec_en, "en": rec_en or rec_ko}
+    return entries
 
 
 def _condition_card(agg: dict) -> str:
@@ -205,6 +222,7 @@ def _build_i18n_dict(agg: dict) -> dict:
 def build_html_report(agg: dict, comment: dict) -> str:
     excel_href = f"/excel-files/{agg['lot_id']}.xlsx"
     i18n_dict = _build_i18n_dict(agg)
+    i18n_dict.update(ai_comment_i18n_entries(comment))
     i18n_json = json.dumps(i18n_dict, ensure_ascii=False)
 
     return f"""<!DOCTYPE html>
@@ -235,7 +253,6 @@ def build_html_report(agg: dict, comment: dict) -> str:
   .comment-box {{ background: #eef6ff; border-left: 4px solid #3b82f6; padding: 14px 18px; border-radius: 6px; margin-top: 8px; white-space: pre-wrap; line-height: 1.6; }}
   .recommend-box {{ background: #fff7ed; border: 1px solid #fdba74; border-left: 4px solid #f97316; padding: 14px 18px; border-radius: 6px; margin-top: 10px; white-space: pre-wrap; line-height: 1.6; }}
   .recommend-title {{ font-weight: 700; color: #9a3412; margin-bottom: 4px; }}
-  .ai-note {{ font-size: 12px; color: #9ca3af; font-weight: 400; }}
   .download {{ display: inline-block; margin-top: 24px; padding: 10px 18px; background: #111827; color: #fff; text-decoration: none; border-radius: 6px; }}
 </style>
 </head>
@@ -254,7 +271,7 @@ def build_html_report(agg: dict, comment: dict) -> str:
   <h2 data-i18n="ng_list_title">NG 목록</h2>
   {_ng_table(agg)}
 
-  <h2><span data-i18n="ai_comment_title">AI 해석 코멘트</span><span class="ai-note" data-i18n="ai_ko_only_note"></span></h2>
+  <h2 data-i18n="ai_comment_title">AI 해석 코멘트</h2>
   {render_ai_comment_block(comment)}
 
   <a class="download" href="{escape(excel_href)}" download data-i18n="download_btn">엑셀 파일 다운로드</a>

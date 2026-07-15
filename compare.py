@@ -1,8 +1,8 @@
 """F7 Lot 비교 기능: 수치 표(파이썬) + 규칙 기반 결론 문장(파이썬) + LLM 해석 3층 구조.
 
 한/영 전환은 report.py와 동일한 방식(data-i18n + static/i18n.js)을 쓴다. 규칙 기반 결론 문장은
-파이썬이 한국어/영어 버전을 각각 조립해 dict로 만들고, data-i18n으로 토글한다. AI 해석·개선 권고는
-report.py와 마찬가지로 한국어로만 존재한다.
+파이썬이 한국어/영어 버전을 각각 조립해 dict로 만들고, data-i18n으로 토글한다. AI 해석·개선 권고도
+report.py와 동일하게 llm_client.py가 두 언어를 각각 생성한다.
 """
 import json
 import os
@@ -31,7 +31,6 @@ STATIC_I18N = {
     "row_st2_std": {"ko": "ST2 표준편차", "en": "ST2 Std Dev"},
     "conclusion_title": {"ko": "규칙 기반 결론", "en": "Rule-Based Conclusion"},
     "ai_comment_title": {"ko": "AI 해석 코멘트", "en": "AI Interpretation"},
-    "ai_ko_only_note": {"ko": "", "en": "(AI-generated text is written in Korean only)"},
     "recommend_title": {"ko": "개선 권고", "en": "Recommendation"},
 }
 
@@ -158,6 +157,7 @@ def _build_i18n_dict(a: dict, b: dict, conclusion: dict) -> dict:
 
 def _build_compare_html(a: dict, b: dict, conclusion: dict, comment: dict) -> str:
     i18n_dict = _build_i18n_dict(a, b, conclusion)
+    i18n_dict.update(report.ai_comment_i18n_entries(comment))
     i18n_json = json.dumps(i18n_dict, ensure_ascii=False)
 
     return f"""<!DOCTYPE html>
@@ -179,7 +179,6 @@ def _build_compare_html(a: dict, b: dict, conclusion: dict, comment: dict) -> st
   .comment-box {{ background: #eef6ff; border-left: 4px solid #3b82f6; padding: 14px 18px; border-radius: 6px; margin-top: 8px; white-space: pre-wrap; line-height: 1.6; }}
   .recommend-box {{ background: #fff7ed; border: 1px solid #fdba74; border-left: 4px solid #f97316; padding: 14px 18px; border-radius: 6px; margin-top: 10px; white-space: pre-wrap; line-height: 1.6; }}
   .recommend-title {{ font-weight: 700; color: #9a3412; margin-bottom: 4px; }}
-  .ai-note {{ font-size: 12px; color: #9ca3af; font-weight: 400; }}
 </style>
 </head>
 <body>
@@ -193,7 +192,7 @@ def _build_compare_html(a: dict, b: dict, conclusion: dict, comment: dict) -> st
   <h2 data-i18n="conclusion_title">규칙 기반 결론</h2>
   <div class="conclusion-box" data-i18n="conclusion">{escape(conclusion['ko'])}</div>
 
-  <h2><span data-i18n="ai_comment_title">AI 해석 코멘트</span><span class="ai-note" data-i18n="ai_ko_only_note"></span></h2>
+  <h2 data-i18n="ai_comment_title">AI 해석 코멘트</h2>
   {report.render_ai_comment_block(comment)}
 </div>
 <script src="/static/i18n.js"></script>
