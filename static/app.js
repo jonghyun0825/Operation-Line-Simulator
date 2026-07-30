@@ -522,8 +522,27 @@ document.getElementById("startBtn").addEventListener("click", async () => {
   startStatusPolling(currentLotId);
 });
 
-document.getElementById("viewReportBtn").addEventListener("click", () => {
-  if (currentLotId) window.open(`/api/report/${currentLotId}`, "_blank");
+// 보고서 생성은 unit-complete 응답을 기다리지 않는 fire-and-forget 호출이라 (commitIndex 참고),
+// 애니메이션이 끝나 이 버튼이 보이는 시점에도 서버에서 LLM 호출이 아직 진행 중일 수 있다.
+// 그 경우 그냥 404 JSON을 새 탭에 띄우는 대신, 한/영 둘 다 보여주는 안내로 대체한다
+// (언어 토글과 무관하게 항상 두 언어 모두 — 사용자가 어느 쪽을 읽든 알아보도록).
+const REPORT_GENERATING_MESSAGE =
+  "보고서를 생성하는 중입니다. 잠시 후 다시 시도해 주세요.\n\n" +
+  "The report is still being generated. Please try again in a moment.";
+
+document.getElementById("viewReportBtn").addEventListener("click", async () => {
+  if (!currentLotId) return;
+  const url = `/api/report/${currentLotId}`;
+  // 탭은 클릭과 동시에(동기적으로) 열어야 팝업 차단을 피한다 — 아래 fetch가 끝난 뒤
+  // window.open을 부르면 브라우저가 "사용자 제스처 밖의 호출"로 보고 막을 수 있다.
+  const reportWin = window.open("", "_blank");
+  const res = await fetch(url).catch(() => null);
+  if (res && res.ok) {
+    if (reportWin) reportWin.location.href = url;
+  } else {
+    if (reportWin) reportWin.close();
+    alert(REPORT_GENERATING_MESSAGE);
+  }
 });
 
 /* ── F7: Lot 비교 ── */
