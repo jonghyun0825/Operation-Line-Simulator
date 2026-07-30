@@ -58,6 +58,17 @@ python pipeline_test.py 2 --temp 29 --head 빠름
 
 These paths are relative to the project root (`config.py`'s `EXCEL_DIR`/`REPORT_DIR`), so they work as-is on any OS or install location as long as you run the server from the project root — no per-machine setup needed.
 
+## Deploying (Render)
+
+`render.yaml` defines a Render Blueprint for this app — Render reads it automatically when you deploy from this repo:
+
+1. Push this repo to GitHub (already done if you're reading this from the remote).
+2. On [Render](https://render.com), **New +** → **Blueprint** → connect this repo. Render detects `render.yaml` and provisions a free web service.
+3. Fill in the `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` env vars in the Render dashboard (e.g. for OpenAI: `https://api.openai.com/v1`, `gpt-4o-mini`, and your API key). Leave them unset to run without AI comments — reports fall back to "AI comment generation failed".
+4. Deploy. Render builds with `pip install -r requirements.txt` and starts with `uvicorn main:app --host 0.0.0.0 --port $PORT`.
+
+**Free-tier caveat**: Render's free plan has no persistent disk — `엑셀 데이터/`, `보고서/`, and `output/lots_index.json` are wiped on every restart/redeploy, so lot history (and the compare feature) won't survive a sleep/wake cycle. Upgrade to a paid plan and attach a persistent disk if you need that history to stick around.
+
 ## Project Structure
 
 | File | Role |
