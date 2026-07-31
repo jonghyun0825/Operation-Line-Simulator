@@ -1,5 +1,7 @@
 # Virtual Assembly Line Quality Simulator
 
+**Live demo: [line-simulator.onrender.com](https://line-simulator.onrender.com)** (free-tier hosting — the first request after a period of inactivity may take a few seconds to wake up, and data resets on server restarts)
+
 A miniature MES (Manufacturing Execution System) simulator that runs a 2-station serial assembly line in the browser. Set production conditions (temperature, head speed) and start a run — two automatic screw-fastening machines process units with perfectly synchronized up/down motion. Every fastening event generates a real measurement written to an Excel (.xlsx) file, out-of-spec values are tracked as NG, and an AI-interpreted quality report is generated automatically when a lot completes.
 
 > Note: this was originally built for a Korean-language manufacturing context, so Korean is the default UI language. A language toggle (top-right, "EN" / "한국어") switches the whole app — and both report types — to English. The screenshot below shows the Korean default.
